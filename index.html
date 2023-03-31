@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Video Background Replacement</title>
+    <style>
+      video {
+        width: 50%;
+        height: auto;
+        object-fit: cover;
+      }
+      canvas {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <video id="realVideo" autoplay></video>
+    <video id="processedVideo" autoplay></video>
+    <canvas id="canvas"></canvas>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.15.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.1/dist/blazeface.min.js"></script>
+    <script>
+      const realVideo = document.getElementById("realVideo");
+      const processedVideo = document.getElementById("processedVideo");
+      const canvas = document.getElementById("canvas");
+      const context = canvas.getContext("2d");
+      let model;
+
+      async function init() {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+        });
+        realVideo.srcObject = stream;
+
+        model = await blazeface.load();
+
+        requestAnimationFrame(processVideo);
+      }
+
+      async function processVideo() {
+        context.drawImage(realVideo, 0, 0, canvas.width, canvas.height);
+
+        const input = tf.browser.fromPixels(canvas);
+        const faces = await model.estimateFaces(input);
+
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.fillStyle = "green";
+
+        if (faces.length > 0) {
+          faces.forEach((face) => {
+            const topLeft = face.topLeft;
+            const bottomRight = face.bottomRight;
+            context.fillRect(
+              topLeft[0],
+              topLeft[1],
+              bottomRight[0] - topLeft[0],
+              bottomRight[1] - topLeft[1],
+            );
+          });
+        }
+
+        const processedStream = canvas.captureStream();
+        processedVideo.srcObject = processedStream;
+
+        requestAnimationFrame(processVideo);
+      }
+
+      init();
+    </script>
+  </body>
+</html>
